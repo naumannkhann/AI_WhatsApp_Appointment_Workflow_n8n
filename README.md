@@ -9,7 +9,7 @@ Day-wise schedules
 Time slots
 Consultation fees (from structured data / Google Sheets)
 If doctor available, the system confirms the appointment
-If doctor not available, the patient is informed instantly
+If doctor not available, the patient is informed instantly.
 Internal confirmation is sent to the hospital/admin team
 
 **Key technologies used:**
