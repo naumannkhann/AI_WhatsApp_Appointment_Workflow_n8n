@@ -1,0 +1,672 @@
+{
+  "name": "AI Whatsapp Appointment Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2864,
+        -8880
+      ],
+      "id": "27593df0-d4a7-4d02-9821-7406e2351504",
+      "name": "WhatsApp Trigger",
+      "webhookId": "a440c15b-0380-43fc-8a73-15434e6191a9",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "rRmdMzOX1yOz8zF4",
+          "name": "WhatsApp OAuth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const phone =\n  $json.from ||\n  $json.phone ||\n  $json.messages?.[0]?.from ||\n  '';\n\nconst rawMessage =\n  $json.text ||\n  $json.messages?.[0]?.text?.body ||\n  '';\n\nconst message = rawMessage.toLowerCase().trim();\n\n// ---- NAME EXTRACTION LOGIC ----\nlet name = '';\n\n// Common patterns users use to mention name\nconst namePatterns = [\n  /my name is ([a-z]+)/i,\n  /i am ([a-z]+)/i,\n  /this is ([a-z]+)/i\n];\n\nfor (const pattern of namePatterns) {\n  const match = rawMessage.match(pattern);\n  if (match && match[1]) {\n    name = match[1].trim();\n    break;\n  }\n}\n\nreturn [{\n  phone,\n  message,\n  name\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2672,
+        -8880
+      ],
+      "id": "4c9a08e8-c131-456d-b1c2-5b5fe912f029",
+      "name": "Normalize Input"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Extract the following from user message:\n- intent: book_appointment / other\n- specialist: doctor type mentioned\n- day: mentioned appointment day (like 'tomorrow', 'Tuesday', date)\nFormat JSON as: \n{\"intent\":\"\", \"specialist\":\"\", \"day\":\"\"}\nMessage: {{$json.message}}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -2512,
+        -8880
+      ],
+      "id": "d3e88066-3452-4fc4-bddf-1b7e7598d4d9",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -2672,
+        -8608
+      ],
+      "id": "66463726-2ae1-464c-b2fd-595ce8fc85cd",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "3zuuwPla7pnS6UYC",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "14b2c8a9-edf6-4040-b601-af0dbbafd241",
+              "leftValue": "={{$json.intent?.toLowerCase()?.trim() === \"book_appointment\"}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2016,
+        -8880
+      ],
+      "id": "67413b64-d44f-4238-9399-76f6a384c414",
+      "name": "Intent = Book Appointment?"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1LA_ta6hU0cSecKD9uOURxH0a1adEIDhCIet6BjeWewc",
+          "mode": "list",
+          "cachedResultName": "Hospital Appointment System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LA_ta6hU0cSecKD9uOURxH0a1adEIDhCIet6BjeWewc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Doctors_Master",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LA_ta6hU0cSecKD9uOURxH0a1adEIDhCIet6BjeWewc/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "specialist",
+              "lookupValue": "={{ $json.specialist }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1792,
+        -8896
+      ],
+      "id": "62e6961a-53f7-4617-b461-24b69eee691e",
+      "name": "Doctors_Master",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nLiRKQQKdFosXjmF",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2208,
+        -8880
+      ],
+      "id": "7794b531-fd40-4497-b14a-27955a2eaf58",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1568,
+        -8896
+      ],
+      "id": "b112ffc5-b11e-4f18-9538-5c79ad7d262d",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "name": "Replace Me",
+      "typeVersion": 1,
+      "position": [
+        -1552,
+        -8656
+      ],
+      "id": "4dbe18e4-ce76-4124-bab0-e1b5053442d6"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1LA_ta6hU0cSecKD9uOURxH0a1adEIDhCIet6BjeWewc",
+          "mode": "list",
+          "cachedResultName": "Hospital Appointment System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LA_ta6hU0cSecKD9uOURxH0a1adEIDhCIet6BjeWewc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 164520162,
+          "mode": "list",
+          "cachedResultName": "Doctor_Schedule",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LA_ta6hU0cSecKD9uOURxH0a1adEIDhCIet6BjeWewc/edit#gid=164520162"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "doctor_id",
+              "lookupValue": "={{$json.doctor_id}}"
+            },
+            {
+              "lookupColumn": "day",
+              "lookupValue": "={{ $('Edit Fields').item.json.day }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1360,
+        -8912
+      ],
+      "id": "ecf46e98-9591-4e60-8405-e9b0131eeeab",
+      "name": "Doctor_Schedule",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nLiRKQQKdFosXjmF",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8b9e2811-67a7-4002-bad9-d7a62ce27c94",
+              "leftValue": "={{$json.total_slots}}",
+              "rightValue": "={{$json.booked_slots}}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1072,
+        -8912
+      ],
+      "id": "137d8ada-aca3-496e-b3c8-781489aeccfa",
+      "name": "Slots Available?"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1LA_ta6hU0cSecKD9uOURxH0a1adEIDhCIet6BjeWewc",
+          "mode": "list",
+          "cachedResultName": "Hospital Appointment System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LA_ta6hU0cSecKD9uOURxH0a1adEIDhCIet6BjeWewc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 918227171,
+          "mode": "list",
+          "cachedResultName": "Bookings_Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LA_ta6hU0cSecKD9uOURxH0a1adEIDhCIet6BjeWewc/edit#gid=918227171"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "patient_name": "={{ $('Normalize Input').item.json.name }}",
+            "mobile": "={{ $('Normalize Input').item.json.phone }}",
+            "doctor_id": "={{ $json.doctor_id }}",
+            "day": "={{ $json.day }}",
+            "time": "={{ $json.start_time }} - {{ $json.end_time }}",
+            "fee": "={{ $json.fee }}",
+            "status": "Confirmed",
+            "created_at": "{{$now}}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "booking_id",
+              "displayName": "booking_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "patient_name",
+              "displayName": "patient_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mobile",
+              "displayName": "mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "doctor_id",
+              "displayName": "doctor_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "day",
+              "displayName": "day",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "time",
+              "displayName": "time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fee",
+              "displayName": "fee",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1152,
+        -9088
+      ],
+      "id": "4477dc5e-9632-4ca0-b3d6-ad01de67ecee",
+      "name": "Booking_Details",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nLiRKQQKdFosXjmF",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "976309818889667",
+        "recipientPhoneNumber": "+92 315 8687718",
+        "textBody": "=Your Appointment is confirmed for the following details:\nPatient Name: {{ $('Normalize Input').item.json.name }} Phone: {{ $('Normalize Input').item.json.phone }} Doctor Name:{{ $('Doctors_Master').item.json.doctor_name }} Time: {{ $json.start_time }} - {{ $json.end_time }} Fee: {{ $json.fee}} \nThankyou.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -832,
+        -9088
+      ],
+      "id": "1432cfdc-def2-4242-96b6-52fcb136520d",
+      "name": "Confirmation Message",
+      "webhookId": "682dbdac-8566-436d-a249-5e8a47b46973",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "G9s2ukiPB9FJeWbB",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "976309818889667",
+        "recipientPhoneNumber": " +92 315 8687718",
+        "textBody": "No slots available, thanks for contacting us.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -864,
+        -8672
+      ],
+      "id": "4aec36bd-9edd-4d37-bc60-3a11ac09768f",
+      "name": "Thanks message",
+      "webhookId": "535b4ab8-cb2d-4fed-8953-ca5fd4e41619",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "G9s2ukiPB9FJeWbB",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Doctors_Master').item.json.email }}",
+        "subject": "Appointment Confirmation",
+        "message": "=Dear Team,\n\nThis email is to inform you that a new appointment has been successfully scheduled with the following details:\n\nPatient Name: {{ $('Normalize Input').item.json.name }}\nContact Number: {{ $('Normalize Input').item.json.phone }}\n\nDoctor Name: {{ $('Doctors_Master').item.json.doctor_name }}\nDepartment/Specialty: {{ $('Doctors_Master').item.json.specialist }}\nAppointment Date & Time: {{ $('Doctor_Schedule').item.json.day }}, {{ $('Doctor_Schedule').item.json.start_time }} - {{ $('Doctor_Schedule').item.json.end_time }}\nConsultation Fee: {{ $('Doctor_Schedule').item.json.fee }}\n\nKindly ensure the doctor’s availability and make the necessary arrangements for the scheduled appointment.\n\nIf there are any changes or issues regarding this appointment, please update the system accordingly.\n\nRegards,\nAI Hospital Appointment System",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -640,
+        -9088
+      ],
+      "id": "8f966733-22f4-40b0-b9c3-a849b4eb75eb",
+      "name": "Email Confirmation to Hospital",
+      "webhookId": "2f7ebbda-9beb-4b06-90a3-4b79ce5433ce",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6eZS0F7cpZQlz9ya",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "976309818889667",
+        "recipientPhoneNumber": "+92 315 8687718",
+        "textBody": "=Please find below the availability of our specialist doctors.\n\n👨‍⚕️ Dr. Ali\nSpecialist: Dermatologist\n🗓 Days: Tuesday, Thursday, Saturday\n⏰ Time: 4:00 PM – 6:00 PM\n💰 Fee: PKR 3,000\n\n👩‍⚕️ Dr. Khalida\nSpecialist: Orthopedic\n🗓 Days: Monday, Wednesday, Friday\n⏰ Time: 1:00 PM – 3:00 PM\n💰 Fee: PKR 3,000\n\n👩‍⚕️ Dr. Anum\nSpecialist: Neurologist\n🗓 Days: Tuesday, Thursday, Saturday\n⏰ Time: 2:00 PM – 4:00 PM\n💰 Fee: PKR 3,000\n\n👨‍⚕️ Dr. Imran\nSpecialist: Psychologist\n🗓 Days: Monday, Wednesday, Friday\n⏰ Time: 3:00 PM – 5:00 PM\n💰 Fee: PKR 3,000\n\n👨‍⚕️ Dr. Furqan\nSpecialist: Gastroenterologist\n🗓 Days: Tuesday, Thursday, Saturday\n⏰ Time: 9:00 AM – 11:00 AM\n💰 Fee: PKR 3,000\n\n👨‍⚕️ Dr. Adil\nSpecialist: Pulmonologist\n🗓 Days: Monday, Wednesday, Friday\n⏰ Time: 8:00 AM – 10:00 AM\n💰 Fee: PKR 3,000\n\n👨‍⚕️ Dr. Waqar\nSpecialist: Cardiologist\n🗓 Days: Tuesday, Thursday, Saturday\n⏰ Time: 7:00 AM – 9:00 AM\n💰 Fee: PKR 3,000\n\n👩‍⚕️ Dr. Nauman\nSpecialist: Gynaecologist\n🗓 Days: Monday, Wednesday, Friday\n⏰ Time: 10:00 AM – 12:00 PM\n💰 Fee: PKR 3,000\n\n👩‍⚕️ Dr. Seema\nSpecialist: Rheumatologist\n🗓 Days: Tuesday, Thursday, Saturday\n⏰ Time: 11:00 AM – 1:00 PM\n💰 Fee: PKR 3,000\n\n👩‍⚕️ Dr. Alishba\nSpecialist: Urologist\n🗓 Days: Monday, Wednesday, Friday\n⏰ Time: 12:00 PM – 2:00 PM\n💰 Fee: PKR 3,000\n\n👨‍⚕️ Dr. Kamran\nSpecialist: Allergist / Immunologist\n🗓 Days: Tuesday, Thursday, Saturday\n⏰ Time: 5:00 PM – 7:00 PM\n💰 Fee: PKR 3,000\n\n👨‍⚕️ Dr. Faisal\nSpecialist: Endocrinologist\n🗓 Days: Monday, Wednesday, Friday\n⏰ Time: 6:00 PM – 7:00 PM\n💰 Fee: PKR 3,000\n\n👨‍⚕️ Dr. Saim\nSpecialist: Oncologist\n🗓 Days: Tuesday, Thursday, Saturday\n⏰ Time: 7:00 PM – 8:00 PM\n💰 Fee: PKR 3,000\n\n👨‍⚕️ Dr. Johar\nSpecialist: General Physician\n🗓 Days: Monday, Wednesday, Friday\n⏰ Time: 8:00 PM – 9:00 PM\n💰 Fee: PKR 3,000\n\n📌 To book an appointment, please share:\n\nYour name \n\nSpecialty\n\nPreferred day\n\nOur team will assist you accordingly.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        -1952,
+        -8608
+      ],
+      "id": "2027bb72-536b-4895-af63-e496ae08fb14",
+      "name": "Schedule Details",
+      "webhookId": "29e11a31-dd11-4143-9661-1be398fbac00",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "G9s2ukiPB9FJeWbB",
+          "name": "WhatsApp account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent = Book Appointment?": {
+      "main": [
+        [
+          {
+            "node": "Doctors_Master",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Schedule Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Doctors_Master": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Intent = Book Appointment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Doctor_Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Me": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Doctor_Schedule": {
+      "main": [
+        [
+          {
+            "node": "Slots Available?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Booking_Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slots Available?": {
+      "main": [
+        [
+          {
+            "node": "Confirmation Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Thanks message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Booking_Details": {
+      "main": [
+        []
+      ]
+    },
+    "Confirmation Message": {
+      "main": [
+        [
+          {
+            "node": "Email Confirmation to Hospital",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "42c10a6b-51e0-4afa-aba7-cd3d8e533c79",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f9ca05499a65d18ad1bb67bd915d3e37f826b13f50755ca37c97d448d967f525"
+  },
+  "id": "QdEMaRITuEx3NbI7",
+  "tags": []
+}
